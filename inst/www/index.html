@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>SDMX Quick View App</title>
+
+<script src="jquery-1.10.2.min.js"></script>
+<script src="opencpu-0.4.js"></script>
+<script src="bootstrap.min.js"></script>
+<script src="jquery.dataTables.min.js"></script>
+<script src="dataTables.bootstrap.js"></script>
+
+<script src="d3.min.js"></script>
+<script src="c3.min.js"></script>
+<script src="app.js"></script>
+
+<link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="jquery.dataTables.css">
+<link rel="stylesheet" type="text/css" href="c3.css">
+
+<script>
+
+    //init this script when the page has loaded
+    $(document).ready(function(){
+
+        var curr = [{id: "HRK", label: "Croatian kuna"},
+        {id: "USD", label: "US dollar"},
+        {id: "CHF", label: "Swiss franc"},
+        {id: "NOK", label: "Norwegian krone"},
+        {id: "CZK", label: "Czech koruna"}];
+        makeDropDown(curr, "position2", "id", "label").appendTo('#menu');
+        $('#menu').append('vs.');
+
+        var curr2 = [{id: "EUR", label: "Euro"}];
+        makeDropDown(curr2, "position3", "id", "label").appendTo('#menu');
+
+        $('#menu').append('<hr><p><strong>Exchange rate type:</strong></p><div id="wait4" >Fetching Exchange rate type code list ...</div><div id="wait5" >Fetching Exch. rate series variation code list ...</div>');
+
+        //get the exchange rate type
+        var ex_rate = ocpu.rpc("ex_rate", {}, function(output){
+          console.log(output.message);
+          $("#wait4").html('');
+          makeDropDown(output.message, "position4", "id", "label.en").appendTo('#wait4');
+        });
+
+        //if R returns an error, alert the error message
+        ex_rate.fail(function(){
+          alert("Server error: " + ex_rate.responseText);
+        });
+
+        //after request complete
+        ex_rate.always(function(){
+          console.log("Request completed.");
+        });
+
+        //get the exchange rate suffix
+        var ex_rate_suffix = ocpu.rpc("ex_rate_suffix", {}, function(output){
+          console.log(output.message);
+          $("#wait5").html('');
+          makeDropDown(output.message, "position5", "id", "label.en").appendTo('#wait5');
+        });
+
+        //if R returns an error, alert the error message
+        ex_rate_suffix.fail(function(){
+          alert("Server error: " + ex_rate_suffix.responseText);
+        });
+
+        //after request complete
+        ex_rate_suffix.always(function(){
+          console.log("Request completed.");
+
+        });
+
+
+      //init vars on start
+      var myUrl = "https://sdw-wsrest.ecb.europa.eu/service/data/EXR/M"
+			var report_freq = 'M';
+			var v_xFormat = '%Y-%m'; 					 //default
+			var v_format = '';
+			set_chart_parms(report_freq);
+
+      $("#submitbutton").on("click", function(){
+        //disable the button to prevent multiple clicks
+        $("#submitbutton").attr("disabled", "disabled");
+
+        //prepare the url
+        var url = myUrl+"."+$("#position2").val()+"."+$("#position3").val()+"."+$("#position4").val()+"."+$("#position5").val();
+        $("#urlfield").html(url);
+        $("#urlstatus").html('<div class="alert alert-warning" role="alert"><strong>Processing! </strong> Querying API endpoint ...</div>');
+
+        //perform the request
+        var req = ocpu.rpc("show", {
+          url : url
+        }, function(output){
+          //$("#output").text(JSON.stringify(output.message));
+          //console.log(output.message);
+          clearResults('target_data');
+          if (output.message[0] == 'na') {
+            $("#urlstatus").html('<div class="alert alert-danger" role="alert"><strong>Oh snap!</strong> Dataset doesnt exist!</div>');
+          } else if (output.message[0] == 'empty') {
+            $("#urlstatus").html('<div class="alert alert-warning" role="alert"><strong>Warning!</strong> Enter url with SDMX data!</div>');
+          } else {
+            drawTable(output, 'output');
+  				  InitDataTable('target_data');
+            chart = generate_chart(output.message);
+            $("#urlstatus").html('<div class="alert alert-success" role="alert"><strong>Success!</strong> Dataset loaded.</div>');
+          }
+
+        });
+
+        //if R returns an error, alert the error message
+        req.fail(function(){
+          alert("Server error: " + req.responseText);
+        });
+
+        //after request complete, re-enable the button
+        req.always(function(){
+          $("#submitbutton").removeAttr("disabled")
+        });
+      });
+    });
+    </script>
+
+
+  </head>
+
+  <body>
+  <div id="main" class="container-fluid">
+    <div class="row">
+      <div class="col-xs-12">
+          <div class="lead">SDMX Quick View - ECB Exchange Rates (Monthly)</div>
+      </div>
+    </div>
+    <div class="well">
+      <b>Make a selection: </b>
+      <div class="row">
+        <div class="col-md-8 col-xs-12" id="menu" >
+        </div>
+        <div class="col-md-4 col-xs-12">
+          <button class="btn btn-primary" id="submitbutton" type="button">Submit!</button>
+        </div>
+      </div>
+    </div>
+    <div class="well">
+      <b>API endpoint with SDMX data: </b>
+      <div class="row">
+        <div class="col-md-8 col-xs-12" id="urlfield"></div>
+        <div class="col-md-4 col-xs-12" id="urlstatus"></div>
+      </div>
+    </div>
+    <div class="well">
+      <div class="row">
+        <div class="col-xs-12">
+					<div id="chart_c"></div>
+			  </div>
+      </div>
+		</div>
+		<div class="row">
+      <div class="col-xs-12">
+        <span id="output"></span>
+      </div>
+    </div>
+  </div>
+  </body>
+</html>

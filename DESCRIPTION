@@ -1,0 +1,11 @@
+Package: sdmxquickview
+Type: Package
+Title: ECB Exchange Rates (Monthly)
+Version: 0.1
+Date: 2015-06-30
+Authors@R: person("Goran", "Gruic", email = "ggruic1977@gmail.com", role = c("aut", "cre"))
+Description: Demo Application - SDMX via REST API with OpenCPU
+License: CC0
+LazyData: TRUE
+Imports:
+    rsdmx
